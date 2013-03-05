@@ -126,6 +126,7 @@ bool init(parsed_opts_t* opts, curr_state_t** state ) {
     state_prep->curr_input_header = vcf_hdr_read(state_prep->curr_input_file);
 
     // Open files with annotation in
+    state_prep->annot_count = opts->annot_count;
     state_prep->annot_file = (vcfFile**)calloc(opts->annot_count, sizeof(vcfFile*));
     state_prep->annot_header = (bcf_hdr_t**)calloc(opts->annot_count, sizeof(bcf_hdr_t*));
     state_prep->annot_read = (bcf1_t**)calloc(opts->annot_count, sizeof(bcf1_t*));
@@ -158,9 +159,9 @@ bool init(parsed_opts_t* opts, curr_state_t** state ) {
 
 bool match (bcf1_t* a, bcf1_t* b)
 {
-    if (a->rid == b->rid && a->pos == b->pos && a->d.m_allele == b->d.m_allele) {
+    if (a->rid == b->rid && a->pos == b->pos && a->n_allele == b->n_allele) {
         bool match = true;
-        for (int i = 0; i < a->d.m_allele; i++) {
+        for (int i = 0; i < a->n_allele; i++) {
             if (strcmp(a->d.allele[i], b->d.allele[i])) {
                 return false;
             }
@@ -184,7 +185,7 @@ bool merge(curr_state_t* state) {
                     // copy annots into line
                     printf("match found\n");
                     // read next annot
-                    if (vcf_read1(state->annot_file[i], state->annot_header[i], state->annot_read[i]))
+                    if (vcf_read1(state->annot_file[i], state->annot_header[i], state->annot_read[i]) >= 0)
                     {
                         bcf_unpack(state->annot_read[i], BCF_UN_SHR);
                     }
@@ -192,6 +193,7 @@ bool merge(curr_state_t* state) {
                     {
                         bcf_destroy1(state->annot_read[i]);
                         state->annot_read[i] = NULL;
+                        printf("annot file exhausted\n");
                     }
                 }
             }
