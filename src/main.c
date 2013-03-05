@@ -175,6 +175,7 @@ bool merge(curr_state_t* state) {
     bcf1_t* line = bcf_init1();
 
     vcf_hdr_write(state->output_file, state->output_header);
+    //int output_key = state->output_header.id[BCF_DT_ID].[$key].key;
     do {
         while (vcf_read1(state->curr_input_file, state->curr_input_header, line) >= 0) {
             bcf_unpack(line, BCF_UN_STR);
@@ -188,6 +189,7 @@ bool merge(curr_state_t* state) {
                     if (vcf_read1(state->annot_file[i], state->annot_header[i], state->annot_read[i]) >= 0)
                     {
                         bcf_unpack(state->annot_read[i], BCF_UN_SHR);
+                        //line->d.info[output_key].blah = state->annot_read[i]->d.info[state->annot_key[i]].blah;
                     }
                     else
                     {
