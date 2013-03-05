@@ -12,7 +12,7 @@ AC_PROG_CC
 AC_PROG_CC_C99
 
 # Checks for libraries.
-LDFLAGS="-pthread"
+LDFLAGS+=" -pthread"
 AC_CHECK_LIB([hts], [hts_open])
 if test "$ac_cl_lib_hts" == no
 then
@@ -21,7 +21,7 @@ fi
 AC_CHECK_LIB([z], [zlib])
 
 # Checks for header files.
-CFLAGS="-DPOSIX_SOURCE -g -I../../htslib -DPOSIX_SOURCE"
+CFLAGS+=" -DPOSIX_SOURCE -g -I../../htslib -DPOSIX_SOURCE"
 LDFLAGS+=" -L../../htslib/htslib -lz -lhts"
 LIBS="-lz -lhts"
 
