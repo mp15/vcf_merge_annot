@@ -1,1 +1,1 @@
-../src/vcf_merge_annot input.list sites.vcf output.vcf.gz
+../src/vcf_merge_annot input.list sites-snp.vcf sites-indel.vcf output.vcf.gz
