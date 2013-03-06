@@ -48,12 +48,15 @@ struct curr_state {
     htsFile** annot_file;
     bcf1_t** annot_read;
     bcf_hdr_t** annot_header;
+    int32_t* annot_key;
     
     htsFile* output_file;
     bcf_hdr_t* output_header;
 };
 
 typedef struct curr_state curr_state_t;
+
+const char* ANNOT_TO_COPY = "VQSLOD";
 
 parsed_opts_t* parse_args(int argc, char** argv) {
     if (argc < 3) {
@@ -130,6 +133,7 @@ bool init(parsed_opts_t* opts, curr_state_t** state ) {
     state_prep->annot_file = (vcfFile**)calloc(opts->annot_count, sizeof(vcfFile*));
     state_prep->annot_header = (bcf_hdr_t**)calloc(opts->annot_count, sizeof(bcf_hdr_t*));
     state_prep->annot_read = (bcf1_t**)calloc(opts->annot_count, sizeof(bcf1_t*));
+    state_prep->annot_key = (int32_t*)calloc(opts->annot_count, sizeof(int32_t*));
     for (size_t i = 0; i < opts->annot_count; i++) {
         state_prep->annot_file[i] = vcf_open(opts->annot_name[i], "r", NULL);
         if (state_prep->annot_file[i] == NULL) {
@@ -140,10 +144,16 @@ bool init(parsed_opts_t* opts, curr_state_t** state ) {
         state_prep->annot_read[i] = bcf_init1();
         vcf_read1(state_prep->annot_file[i], state_prep->annot_header[i], state_prep->annot_read[i]);
         bcf_unpack(state_prep->annot_read[i], BCF_UN_SHR);
+        state_prep->annot_key[i] = bcf_id2int(state_prep->annot_header[i], BCF_DT_ID, ANNOT_TO_COPY);
     }
 
     // TODO: consider merging headers instead of just taking first one
-    state_prep->output_header = state_prep->curr_input_header;
+    // Use bcf_hdr_subset to copy bcf_hdr
+    int* imap = (int*)malloc(state_prep->curr_input_header->n[BCF_DT_SAMPLE] * sizeof(int));
+    state_prep->output_header = bcf_hdr_subset(state_prep->curr_input_header, state_prep->curr_input_header->n[BCF_DT_SAMPLE], state_prep->curr_input_header->samples, imap);
+    bcf_hrec_t* copy_hdr = bcf_hdr_get_hrec(state_prep->annot_header[0], BCF_HL_INFO, ANNOT_TO_COPY);
+    if (bcf_hdr_add_hrec(state_prep->output_header, copy_hdr)) { bcf_hdr_sync(state_prep->output_header); }
+    bcf_hdr_fmt_text(state_prep->output_header);
 
     state_prep->output_file = vcf_open(opts->output_name, "w", NULL);
     
@@ -199,17 +209,39 @@ bool merge(curr_state_t* state) {
     bcf1_t* line = bcf_init1();
 
     vcf_hdr_write(state->output_file, state->output_header);
-    //int output_key = state->output_header.id[BCF_DT_ID].[$key].key;
+    
+    int32_t output_key = bcf_id2int(state->output_header, BCF_DT_ID, ANNOT_TO_COPY);
+    if (output_key == -1) abort();
+
     do {
         while (vcf_read1(state->curr_input_file, state->curr_input_header, line) >= 0) {
-            bcf_unpack(line, BCF_UN_STR);
+            bcf_unpack(line, BCF_UN_SHR);
             for (int i = 0; i < state->annot_count; i++)
             {
                 if (state->annot_read[i] != NULL) {
                     if (match(line, state->annot_read[i])) {
                         // copy annots into line
                         printf("match found\n"); //TRACE
-                        //line->d.info[output_key].blah = state->annot_read[i]->d.info[state->annot_key[i]].blah;
+                        for (int j = 0; j < state->annot_read[i]->n_info; j++) {
+                            if (state->annot_read[i]->d.info[j].key == state->annot_key[i]) {
+                                printf("copy: %g\n",state->annot_read[i]->d.info[j].v1.f);
+                                if ((line->d.m_info - line->n_info) == 0) {
+                                    line->d.m_info++;
+                                    line->d.info = (bcf_info_t*) realloc(line->d.info, sizeof(bcf_info_t)*line->d.m_info);
+                                    printf("increasing m_info\n"); //TRACE
+
+                                }
+                                int32_t k = line->n_info;
+                                line->n_info++;
+                                line->d.info[k].key = output_key;
+                                line->d.info[k].type = state->annot_read[i]->d.info[j].type;
+                                line->d.info[k].len = state->annot_read[i]->d.info[j].len;
+                                line->d.info[k].v1 = state->annot_read[i]->d.info[j].v1;
+                                printf("info added found\n"); //TRACE
+                                
+                                break;
+                            }
+                        }
                         // read next annot
                         read_next_annot(state, i);
                     } else if (gt(line, state->annot_read[i])) { read_next_annot(state, i); }
