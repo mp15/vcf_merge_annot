@@ -21,9 +21,10 @@ fi
 AC_CHECK_LIB([z], [zlib])
 
 # Checks for header files.
-CFLAGS+=" -DPOSIX_SOURCE -g -I../../htslib -DPOSIX_SOURCE"
+CFLAGS+=" -g"
+CPPFLAGS+=" -I../../htslib -DPOSIX_SOURCE"
 LDFLAGS+=" -L../../htslib/htslib -lz -lhts"
-LIBS="-lz -lhts"
+LIBS+=" -lz -lhts"
 
 # Checks for typedefs, structures, and compiler characteristics.
 
