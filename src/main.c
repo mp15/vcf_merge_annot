@@ -157,7 +157,7 @@ bool init(parsed_opts_t* opts, curr_state_t** state ) {
     return true;
 }
 
-bool match (bcf1_t* a, bcf1_t* b)
+bool match(bcf1_t* a, bcf1_t* b)
 {
     if (a->rid == b->rid && a->pos == b->pos && a->n_allele == b->n_allele) {
         bool match = true;
@@ -171,6 +171,30 @@ bool match (bcf1_t* a, bcf1_t* b)
     return false;
 }
 
+// Returns true if position of a greater than b
+bool gt(bcf1_t* a, bcf1_t* b)
+{
+    if (a->rid > b->rid || (a->rid == b->rid && a->pos > b->pos)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void read_next_annot(curr_state_t* state, int i)
+{
+    if (vcf_read1(state->annot_file[i], state->annot_header[i], state->annot_read[i]) >= 0)
+    {
+        bcf_unpack(state->annot_read[i], BCF_UN_SHR);
+    }
+    else
+    {
+        bcf_destroy1(state->annot_read[i]);
+        state->annot_read[i] = NULL;
+        printf("annot file exhausted\n"); // TRACE
+    }
+}
+
 bool merge(curr_state_t* state) {
     bcf1_t* line = bcf_init1();
 
@@ -181,22 +205,14 @@ bool merge(curr_state_t* state) {
             bcf_unpack(line, BCF_UN_STR);
             for (int i = 0; i < state->annot_count; i++)
             {
-                if (state->annot_read[i] != NULL && match(line, state->annot_read[i]))
-                {
-                    // copy annots into line
-                    printf("match found\n");
-                    // read next annot
-                    if (vcf_read1(state->annot_file[i], state->annot_header[i], state->annot_read[i]) >= 0)
-                    {
-                        bcf_unpack(state->annot_read[i], BCF_UN_SHR);
+                if (state->annot_read[i] != NULL) {
+                    if (match(line, state->annot_read[i])) {
+                        // copy annots into line
+                        printf("match found\n"); //TRACE
                         //line->d.info[output_key].blah = state->annot_read[i]->d.info[state->annot_key[i]].blah;
-                    }
-                    else
-                    {
-                        bcf_destroy1(state->annot_read[i]);
-                        state->annot_read[i] = NULL;
-                        printf("annot file exhausted\n");
-                    }
+                        // read next annot
+                        read_next_annot(state, i);
+                    } else if (gt(line, state->annot_read[i])) { read_next_annot(state, i); }
                 }
             }
             vcf_write1(state->output_file, state->output_header, line);
