@@ -201,7 +201,6 @@ void read_next_annot(curr_state_t* state, int i)
     {
         bcf_destroy1(state->annot_read[i]);
         state->annot_read[i] = NULL;
-        printf("annot file exhausted\n"); // TRACE
     }
 }
 
@@ -221,14 +220,12 @@ bool merge(curr_state_t* state) {
                 if (state->annot_read[i] != NULL) {
                     if (match(line, state->annot_read[i])) {
                         // copy annots into line
-                        printf("match found\n"); //TRACE
                         for (int j = 0; j < state->annot_read[i]->n_info; j++) {
                             if (state->annot_read[i]->d.info[j].key == state->annot_key[i]) {
                                 printf("copy: %g\n",state->annot_read[i]->d.info[j].v1.f);
                                 if ((line->d.m_info - line->n_info) == 0) {
                                     line->d.m_info++;
                                     line->d.info = (bcf_info_t*) realloc(line->d.info, sizeof(bcf_info_t)*line->d.m_info);
-                                    printf("increasing m_info\n"); //TRACE
 
                                 }
                                 int32_t k = line->n_info;
@@ -237,7 +234,6 @@ bool merge(curr_state_t* state) {
                                 line->d.info[k].type = state->annot_read[i]->d.info[j].type;
                                 line->d.info[k].len = state->annot_read[i]->d.info[j].len;
                                 line->d.info[k].v1 = state->annot_read[i]->d.info[j].v1;
-                                printf("info added found\n"); //TRACE
                                 
                                 break;
                             }
