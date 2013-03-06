@@ -222,7 +222,6 @@ bool merge(curr_state_t* state) {
                         // copy annots into line
                         for (int j = 0; j < state->annot_read[i]->n_info; j++) {
                             if (state->annot_read[i]->d.info[j].key == state->annot_key[i]) {
-                                printf("copy: %g\n",state->annot_read[i]->d.info[j].v1.f);
                                 if ((line->d.m_info - line->n_info) == 0) {
                                     line->d.m_info++;
                                     line->d.info = (bcf_info_t*) realloc(line->d.info, sizeof(bcf_info_t)*line->d.m_info);
